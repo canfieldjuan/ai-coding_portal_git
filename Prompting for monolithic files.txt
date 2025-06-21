@@ -1,0 +1,441 @@
+# Bulletproof Codebase Modularization Prompt System
+
+## Phase 1: Analysis and Planning (DO THIS FIRST)
+
+### Initial Analysis Prompt
+```
+CODEBASE MODULARIZATION ANALYSIS - Phase 1
+
+CRITICAL: This is a 3500-line PRODUCTION codebase that CANNOT break during refactoring.
+
+Task: Analyze this codebase and create a modularization plan WITHOUT making any changes.
+
+Codebase: [paste your full 3500 lines]
+
+ANALYSIS REQUIREMENTS:
+1. **Function Inventory**: List every function with its dependencies
+2. **Module Boundaries**: Identify logical groupings (auth, database, API, utils, etc.)
+3. **Dependency Map**: Show which functions call which other functions
+4. **Risk Assessment**: Identify high-risk areas that are tightly coupled
+5. **Modularization Order**: Suggest sequence from safest to most complex
+
+OUTPUT FORMAT:
+```
+MODULARIZATION PLAN
+==================
+
+CURRENT STATE:
+- Total lines: [count]
+- Total functions: [count]
+- Main dependencies: [list]
+
+PROPOSED MODULES:
+1. Module: [name] (Lines: X-Y, Functions: [list], Risk: Low/Medium/High)
+2. Module: [name] (Lines: X-Y, Functions: [list], Risk: Low/Medium/High)
+[continue...]
+
+MODULARIZATION SEQUENCE:
+Phase 1: [safest modules first]
+Phase 2: [medium risk modules]  
+Phase 3: [high risk/core modules]
+
+DEPENDENCIES BETWEEN MODULES:
+- Module A depends on: [modules]
+- Module B depends on: [modules]
+
+RISK FACTORS:
+- [specific concerns and mitigation strategies]
+```
+
+DO NOT write any code. Just analyze and plan.
+```
+
+## Phase 2: Individual Module Extraction
+
+### Module Extraction Prompt Template
+```
+CODEBASE MODULARIZATION - Phase 2: Extract Module [X] of [Y]
+
+CRITICAL PRESERVATION REQUIREMENTS:
+✅ Original codebase MUST remain 100% functional
+✅ All existing function signatures MUST stay identical  
+✅ All existing imports/exports MUST continue working
+✅ All existing error handling MUST be preserved
+✅ NO functionality can be simplified or "improved"
+
+PROGRESS TRACKING:
+- Current Module: [module name]
+- Previous Modules Completed: [list of completed modules]
+- Remaining Modules: [list of remaining modules]
+- Session Number: [X] of [estimated total]
+
+ORIGINAL CODEBASE: [paste CURRENT version, including any previous changes]
+
+TARGET MODULE FOR THIS SESSION: [specific module name]
+Functions to Extract: [specific function list from Phase 1 analysis]
+Lines to Extract: [specific line numbers]
+
+MODULARIZATION REQUIREMENTS:
+1. **Extract to New File**: Create `[module-name].js` with the target functions
+2. **Update Original File**: Remove extracted functions, add proper imports
+3. **Preserve Interfaces**: All function calls must work exactly as before
+4. **Maintain Dependencies**: Handle any circular dependency issues
+5. **Add Error Handling**: Proper module loading error handling
+6. **Testing Hooks**: Add validation that extracted module works
+
+OUTPUT REQUIREMENTS - EXACT FORMAT:
+
+## 1. NEW MODULE FILE
+Present as complete, ready-to-save file:
+
+```javascript
+// FILE: [module-name].js
+// EXTRACTED FROM: [original file name]
+// FUNCTIONS: [list of functions in this module]
+
+[complete module code with all imports, exports, etc.]
+```
+
+## 2. UPDATED MAIN FILE  
+Present as complete, ready-to-save file:
+
+```javascript
+// FILE: [original-file-name].js  
+// UPDATED: Removed [module-name] functions
+// ADDED: Import statements for extracted module
+
+[complete updated main file code]
+```
+
+## 3. INTEGRATION SUMMARY
+```
+EXTRACTION SUMMARY
+==================
+Module Created: [module-name].js ([X] lines)
+Functions Moved: [list]
+Main File Updated: [original-name].js (now [Y] lines, was [Z] lines)
+
+IMPORTS ADDED TO MAIN:
+- [specific import statements]
+
+EXPORTS FROM MODULE:  
+- [specific export statements]
+
+FILE STRUCTURE:
+├── [main-file].js ([Y] lines)
+├── [module1].js ([X1] lines) 
+├── [module2].js ([X2] lines)
+└── [new-module].js ([X] lines)
+```
+
+## 4. INSTALLATION INSTRUCTIONS
+```
+SETUP STEPS:
+1. Create file: [module-name].js
+2. Copy module code into new file
+3. Replace main file with updated version
+4. Test: [specific test commands]
+5. Verify: [validation steps]
+```
+
+## 5. VALIDATION CODE
+Provide ready-to-run test:
+
+```javascript
+// VALIDATION TEST - Run this to verify extraction worked
+// FILE: test-[module-name].js
+
+[simple test code that calls extracted functions]
+```
+
+VALIDATION CHECKLIST:
+- [ ] All original function calls still work
+- [ ] All exports from new module are properly imported
+- [ ] No circular dependencies created
+- [ ] Error handling preserved
+- [ ] Performance characteristics maintained
+
+FORBIDDEN ACTIONS:
+❌ Changing function signatures or behavior
+❌ "Improving" or simplifying extracted code
+❌ Combining/splitting functions differently than planned
+❌ Adding new functionality not in original code
+❌ Removing error handling or edge cases
+```
+
+## Phase 3: Progress Tracking System
+
+### Session Continuation Prompt
+```
+RESUME MODULARIZATION - Session [X]
+
+PROGRESS STATUS:
+Last Completed: [last module successfully extracted]
+Current State: [brief description of where we left off]
+Issues Encountered: [any problems from previous session]
+
+CURRENT CODEBASE STATE: [paste current version with previous extractions]
+
+COMPLETED MODULES:
+✅ [module1.js] - [brief description] - [validation status]
+✅ [module2.js] - [brief description] - [validation status]
+
+REMAINING MODULES:
+⏳ [module3.js] - [brief description] - [priority/risk level]
+⏳ [module4.js] - [brief description] - [priority/risk level]
+
+NEXT TARGET: [specific module for this session]
+
+Continue with the same CRITICAL PRESERVATION REQUIREMENTS as previous sessions.
+```
+
+### Checkpoint Validation Prompt
+```
+MODULARIZATION CHECKPOINT - Validate Current State
+
+VALIDATION TASK: Verify that our modularization hasn't broken anything.
+
+CURRENT STATE:
+- Original File: [paste current main file]
+- Extracted Modules: [list module files]
+
+VALIDATION REQUIREMENTS:
+1. **Function Inventory**: List all functions and their current locations
+2. **Import/Export Check**: Verify all imports resolve correctly
+3. **Dependency Validation**: Confirm no broken function calls
+4. **Functionality Test**: Create simple test calls for critical functions
+5. **Performance Check**: Identify any performance regressions
+
+OUTPUT:
+```
+CHECKPOINT VALIDATION REPORT
+============================
+
+FUNCTION LOCATIONS:
+- [function1]: [original file / module file]
+- [function2]: [original file / module file]
+
+IMPORT/EXPORT STATUS:
+✅ All imports resolve correctly
+❌ Issues found: [list any problems]
+
+BROKEN DEPENDENCIES:
+[List any function calls that no longer work]
+
+CRITICAL ISSUES:
+[Any problems that need immediate fixing]
+
+READY FOR NEXT MODULE: YES/NO
+If NO, explain what needs fixing first.
+```
+```
+
+## Phase 4: AI Token Management Strategy
+
+### Chunk Management Prompts
+
+#### For Large Original Files
+```
+LARGE FILE CHUNK PROCESSING - Session [X], Chunk [Y] of [Z]
+
+CONTEXT: Working on modularizing a 3500-line codebase. This is chunk [Y] of the original file.
+
+PREVIOUS CHUNKS SUMMARY:
+- Chunk 1: [brief summary of what was covered]
+- Chunk 2: [brief summary of what was covered]
+
+CURRENT CHUNK: [paste lines X-Y of original file]
+
+TASK FOR THIS CHUNK:
+- Identify: [specific analysis task]
+- Extract: [if extracting, specify what]
+- Validate: [specific validation needed]
+
+CONTEXT PRESERVATION:
+- Functions from previous chunks that this chunk depends on: [list]
+- Functions in this chunk that later chunks will need: [list]
+
+Continue with established modularization standards.
+```
+
+#### For Module Validation
+```
+MODULE VALIDATION - Limited Context
+
+CONTEXT: Extracted module [name] from larger codebase. Need to validate integration.
+
+MODULE CODE: [paste extracted module]
+RELEVANT IMPORTS: [paste import statements and dependent function signatures]
+
+VALIDATION TASK:
+1. Check module exports correctly
+2. Verify imported dependencies work
+3. Test critical function paths
+4. Identify any integration issues
+
+CONSTRAINTS:
+- Don't suggest rewriting working code
+- Focus only on integration validation
+- Report specific issues, not general improvements
+```
+
+## Phase 5: Recovery and Rollback Strategies
+
+### When Something Breaks
+```
+MODULARIZATION RECOVERY - Something Broke
+
+PROBLEM CONTEXT:
+- Last Working State: [describe last known working version]
+- What Changed: [what was extracted/modified in last session]
+- Current Error: [paste specific error messages]
+- Expected Behavior: [what should be happening]
+
+RECOVERY STRATEGY:
+1. **Identify Root Cause**: What specific change broke functionality?
+2. **Minimal Fix**: What's the smallest change to restore functionality?
+3. **Validation**: How do we verify the fix works?
+4. **Prevention**: How do we avoid this in future extractions?
+
+ROLLBACK OPTIONS:
+- Undo last extraction and restore to main file
+- Fix integration issue while keeping module separate
+- Temporarily stub out problematic dependencies
+
+OUTPUT REQUIRED:
+1. Root cause analysis
+2. Step-by-step fix instructions  
+3. Updated code with minimal changes
+4. Validation steps to confirm fix
+5. Updated process to prevent recurrence
+
+DO NOT suggest major rewrites. Just fix the specific integration issue.
+```
+
+## Complete Workflow Example
+
+### Session 1: Planning
+```
+[Use Analysis Prompt with full 3500-line codebase]
+→ Get modularization plan
+→ Identify 5-8 modules and extraction order
+→ Save this plan for reference
+```
+
+### Session 2-N: Module Extraction  
+```
+[Use Module Extraction Prompt for Module 1]
+→ Extract utilities or helpers (lowest risk)
+→ Validate everything still works
+→ Update progress tracking
+```
+
+### Checkpoint Sessions
+```
+[Every 2-3 extractions, use Validation Prompt]
+→ Comprehensive check that nothing broke
+→ Fix any integration issues
+→ Plan next extraction phase
+```
+
+### Recovery Sessions (as needed)
+```
+[When something breaks, use Recovery Prompt]
+→ Quick diagnosis and minimal fix
+→ Get back to working state
+→ Continue extraction process
+```
+
+## Sample Progress Tracking Sheet
+
+Keep this updated between sessions:
+
+```
+MODULARIZATION PROGRESS LOG
+===========================
+
+ORIGINAL: 3500 lines, functions: [list]
+
+PHASE 1 - UTILITIES (LOW RISK)
+✅ utils.js - 200 lines - Date/string helpers - VALIDATED
+✅ constants.js - 50 lines - App constants - VALIDATED  
+⏳ helpers.js - 150 lines - [current target]
+
+PHASE 2 - DATA LAYER (MEDIUM RISK)  
+⏳ database.js - 400 lines - DB operations
+⏳ models.js - 300 lines - Data models
+
+PHASE 3 - BUSINESS LOGIC (HIGH RISK)
+⏳ auth.js - 500 lines - Authentication
+⏳ api.js - 800 lines - API endpoints  
+⏳ core.js - 600 lines - Main business logic
+
+CURRENT STATUS:
+- Sessions completed: 3
+- Lines extracted: 250
+- Lines remaining in main: 3250
+- Issues encountered: [any problems]
+- Next session target: helpers.js
+```
+
+## Nuclear Safety Prompts
+
+### When AI Starts Oversimplifying
+```
+EMERGENCY STOP - Oversimplification Detected
+
+PROBLEM: Your response contained simplified/placeholder code.
+
+ORIGINAL REQUIREMENT: Extract [specific module] while preserving ALL functionality.
+
+UNACCEPTABLE RESPONSES:
+- "// Add your implementation here"
+- Simplified versions of complex logic
+- Removal of error handling
+- Generic variable names
+- Reduced functionality
+
+REQUIRED FIX:
+1. Paste the EXACT functions from original codebase
+2. Show the EXACT integration points
+3. Preserve ALL existing complexity and edge cases
+4. Maintain ALL existing error handling
+
+This is PRODUCTION CODE. Simplification = system failure.
+
+Try again with COMPLETE, WORKING code.
+```
+
+### Final Validation
+```
+MODULARIZATION COMPLETE - Final Validation
+
+TASK: Comprehensive validation that modularization preserved all functionality.
+
+FINAL STATE:
+- Main file: [X] lines (down from 3500)
+- Module files: [list with line counts]
+- Total lines: [should equal original or slightly more]
+
+COMPREHENSIVE TEST:
+1. **Function Coverage**: Every original function still accessible
+2. **Integration Test**: All modules load and interact correctly  
+3. **Performance Test**: No significant performance regression
+4. **Error Handling**: All error paths still work
+5. **Edge Cases**: Complex scenarios still handled
+
+FINAL DELIVERABLES:
+1. Updated main file
+2. All extracted module files
+3. Updated package.json/dependencies if needed
+4. Integration test suite
+5. Documentation of new module structure
+6. Rollback instructions if needed
+
+SIGN-OFF CRITERIA:
+✅ All original functionality preserved
+✅ Code is more maintainable  
+✅ No performance regressions
+✅ Clear module boundaries
+✅ Proper error handling maintained
+```
