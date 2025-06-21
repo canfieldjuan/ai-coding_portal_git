@@ -18,6 +18,15 @@ from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 import shutil
+import concurrent.futures
+import threading
+
+# Fix for async in Streamlit
+try:
+    import nest_asyncio
+    nest_asyncio.apply()
+except:
+    pass
 
 # Core libraries with error handling
 try:
@@ -297,6 +306,43 @@ class Config:
         "fast": "meta-llama/Llama-3.2-3B-Instruct-Turbo",
         "debugging": "Qwen/Qwen2.5-72B-Instruct-Turbo"
     }
+
+# ===========================
+# STREAMLIT ASYNC HELPER - FIXED
+# ===========================
+
+def run_async_in_streamlit(async_func, *args, **kwargs):
+    """Helper to run async functions in Streamlit context - FIXED"""
+    try:
+        # Try to get current event loop
+        try:
+            loop = asyncio.get_running_loop()
+            is_running = True
+        except RuntimeError:
+            loop = None
+            is_running = False
+        
+        if is_running:
+            # We're in an async context, need to run in thread
+            def run_in_thread():
+                new_loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(new_loop)
+                try:
+                    return new_loop.run_until_complete(async_func(*args, **kwargs))
+                finally:
+                    new_loop.close()
+                    asyncio.set_event_loop(None)
+            
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future = executor.submit(run_in_thread)
+                return future.result(timeout=120)  # 2 minute timeout
+        else:
+            # No event loop running, can use asyncio.run
+            return asyncio.run(async_func(*args, **kwargs))
+            
+    except Exception as e:
+        st.error(f"Async execution failed: {e}")
+        return None
 
 # ===========================
 # DATABASE MANAGERS WITH FALLBACKS
@@ -1813,39 +1859,52 @@ async def health_check():
             }
 
 # ===========================
-# STREAMLIT INTERFACE - FIXED
+# STREAMLIT INTERFACE - COMPLETELY FIXED
 # ===========================
 
 def create_complete_portal_app():
-    """Main Streamlit application"""
+    """Main Streamlit application - COMPLETELY FIXED"""
     
     try:
-        st.set_page_config(page_title="🚀 Complete AI Coding Portal", layout="wide")
+        st.set_page_config(
+            page_title="🚀 Complete AI Coding Portal", 
+            layout="wide",
+            initial_sidebar_state="expanded"
+        )
         
         st.title("🚀 Complete AI Coding Portal")
         st.markdown("**Generate code, analyze with NLP, fix with drag-and-drop, connect to live data**")
         
-        # Initialize portal components in session state
-        if 'portal' not in st.session_state:
+        # Initialize portal components in session state - FIXED INITIALIZATION
+        if 'portal_initialized' not in st.session_state:
+            st.session_state.portal_initialized = False
+        
+        if not st.session_state.portal_initialized:
             with st.spinner("Initializing portal..."):
-                st.session_state.portal = CodingPortal()
-        
-        if 'nlp_engine' not in st.session_state:
-            with st.spinner("Loading NLP engine..."):
-                st.session_state.nlp_engine = AdvancedNLPEngine()
-        
-        if 'code_analyzer' not in st.session_state:
-            with st.spinner("Loading code analyzer..."):
-                st.session_state.code_analyzer = AdvancedCodeAnalyzer(st.session_state.portal.model_router)
-        
-        if 'external_data' not in st.session_state:
-            st.session_state.external_data = ExternalDataManager()
+                try:
+                    st.session_state.portal = CodingPortal()
+                    st.session_state.nlp_engine = AdvancedNLPEngine()
+                    st.session_state.code_analyzer = AdvancedCodeAnalyzer(st.session_state.portal.model_router)
+                    st.session_state.external_data = ExternalDataManager()
+                    st.session_state.portal_initialized = True
+                    st.success("✅ Portal initialized successfully!")
+                except Exception as e:
+                    st.error(f"❌ Portal initialization failed: {e}")
+                    st.markdown("""
+                    **Troubleshooting Steps:**
+                    1. Run: `python setup_portal.py`
+                    2. Check that all dependencies are installed
+                    3. Verify Python version is 3.8+
+                    4. Try refreshing the page
+                    """)
+                    st.stop()
         
         # Show system status
         with st.expander("🔧 System Status", expanded=False):
             col1, col2, col3, col4 = st.columns(4)
             with col1:
-                st.metric("Portal Status", "✅ Ready")
+                status = "✅ Ready" if st.session_state.portal_initialized else "❌ Failed"
+                st.metric("Portal Status", status)
             with col2:
                 nlp_status = "✅ Advanced" if HAS_NLP else "⚠️ Basic"
                 st.metric("NLP Engine", nlp_status)
@@ -1879,18 +1938,19 @@ def create_complete_portal_app():
     except Exception as e:
         st.error(f"❌ Portal failed to load: {e}")
         st.markdown("""
-        **Troubleshooting:**
-        1. Check that all dependencies are installed: `pip install streamlit requests`
-        2. Verify your Python version is 3.8+
-        3. Try refreshing the page
-        4. Check the console for detailed error messages
+        **Quick Fix Steps:**
+        1. Run: `python setup_portal.py`
+        2. Check dependencies: `pip install -r requirements.txt`
+        3. Download models: `python -m spacy download en_core_web_sm`
+        4. Refresh the page
         """)
         
         if st.button("🔄 Retry Initialization"):
-            st.experimental_rerun()
+            st.session_state.portal_initialized = False
+            st.rerun()  # FIXED: Use st.rerun() instead of deprecated st.experimental_rerun()
 
 def create_smart_generation_tab():
-    """Smart code generation tab"""
+    """Smart code generation tab - FIXED ASYNC"""
     st.header("🧠 Smart Code Generation with NLP")
     
     col1, col2 = st.columns([2, 1])
@@ -1914,9 +1974,9 @@ def create_smart_generation_tab():
                 language = st.selectbox("Language", ["python", "javascript", "typescript", "java", "go"])
                 framework = st.text_input("Framework (optional)", "fastapi")
         
-        # NLP Analysis
+        # NLP Analysis - FIXED
         if st.button("🔍 Analyze Request", type="primary"):
-            if user_input:
+            if user_input and st.session_state.portal_initialized:
                 with st.spinner("Analyzing with NLP..."):
                     try:
                         analysis = st.session_state.nlp_engine.analyze_request(user_input)
@@ -1952,40 +2012,45 @@ def create_smart_generation_tab():
                     except Exception as e:
                         st.error(f"Analysis failed: {e}")
             else:
-                st.warning("Please enter a description")
+                st.warning("Please enter a description and ensure portal is initialized")
         
-        # Code generation
-        if hasattr(st.session_state, 'analysis') or user_input:
-            st.subheader("🚀 Generate Code")
+        # Code generation - FIXED ASYNC
+        if st.button("Generate Smart Code", type="primary"):
+            if not user_input:
+                st.warning("Please enter a description first")
+                return
             
-            if st.button("Generate Smart Code", type="primary"):
-                if not user_input:
-                    st.warning("Please enter a description first")
-                    return
-                
-                analysis = getattr(st.session_state, 'analysis', None)
-                
-                enhanced_context = {
-                    "codebase_size": codebase_size,
-                    "target_file": target_file,
-                    "language": language,
-                    "framework": framework,
+            if not st.session_state.portal_initialized:
+                st.error("Portal not initialized. Please refresh and try again.")
+                return
+            
+            analysis = getattr(st.session_state, 'analysis', None)
+            
+            enhanced_context = {
+                "codebase_size": codebase_size,
+                "target_file": target_file,
+                "language": language,
+                "framework": framework,
+            }
+            
+            if analysis:
+                enhanced_context["nlp_analysis"] = {
+                    "intent": analysis.intent.value,
+                    "requirements": [r.text for r in analysis.requirements],
+                    "technical_stack": analysis.technical_stack,
+                    "complexity": analysis.complexity_level
                 }
-                
-                if analysis:
-                    enhanced_context["nlp_analysis"] = {
-                        "intent": analysis.intent.value,
-                        "requirements": [r.text for r in analysis.requirements],
-                        "technical_stack": analysis.technical_stack,
-                        "complexity": analysis.complexity_level
-                    }
-                
-                with st.spinner("Generating intelligent code..."):
-                    try:
-                        result = asyncio.run(
-                            st.session_state.portal.generate_code(user_input, enhanced_context)
-                        )
-                        
+            
+            with st.spinner("Generating intelligent code..."):
+                try:
+                    # FIXED: Use the helper function instead of asyncio.run()
+                    result = run_async_in_streamlit(
+                        st.session_state.portal.generate_code, 
+                        user_input, 
+                        enhanced_context
+                    )
+                    
+                    if result:
                         st.success("🎉 Code generated!")
                         st.code(result["code"], language=language)
                         
@@ -2006,9 +2071,11 @@ def create_smart_generation_tab():
                             file_name=f"generated_{target_file}",
                             mime="text/plain"
                         )
+                    else:
+                        st.error("Code generation failed")
                         
-                    except Exception as e:
-                        st.error(f"Generation failed: {e}")
+                except Exception as e:
+                    st.error(f"Generation failed: {e}")
     
     with col2:
         st.subheader("📊 Analysis Dashboard")
@@ -2032,7 +2099,7 @@ def create_smart_generation_tab():
             st.info("Enter a request to see analysis")
 
 def create_drag_drop_tab():
-    """Drag and drop code fixer"""
+    """Drag and drop code fixer - FIXED ASYNC"""
     st.header("🔧 Drag & Drop Code Fixer")
     st.markdown("**Drop your code files for comprehensive analysis and automatic fixing**")
     
@@ -2067,12 +2134,22 @@ def create_drag_drop_tab():
                 
                 # Analysis button
                 if st.button(f"🚀 Analyze & Fix", key=f"fix_{uploaded_file.name}"):
+                    if not st.session_state.portal_initialized:
+                        st.error("Portal not initialized. Please refresh and try again.")
+                        continue
+                        
                     with st.spinner(f"🧠 Analyzing {uploaded_file.name}..."):
                         try:
-                            # Run analysis
-                            analysis = asyncio.run(
-                                st.session_state.code_analyzer.analyze_dropped_code(content, uploaded_file.name)
+                            # FIXED: Run analysis using helper function
+                            analysis = run_async_in_streamlit(
+                                st.session_state.code_analyzer.analyze_dropped_code,
+                                content, 
+                                uploaded_file.name
                             )
+                            
+                            if not analysis:
+                                st.error("Analysis failed")
+                                continue
                             
                             st.success("✅ Analysis complete!")
                             
@@ -2198,7 +2275,7 @@ def create_drag_drop_tab():
             """)
 
 def create_live_data_tab():
-    """Live external data patterns"""
+    """Live external data patterns - FIXED ASYNC"""
     st.header("📊 Live Data & Trending Patterns")
     st.markdown("**Get current patterns from GitHub, StackOverflow, and engineering blogs**")
     
@@ -2220,11 +2297,17 @@ def create_live_data_tab():
         
         if st.button("🔍 Search Live Patterns", type="primary"):
             if search_query:
+                if not st.session_state.portal_initialized:
+                    st.error("Portal not initialized. Please refresh and try again.")
+                    return
+                    
                 with st.spinner("Searching live data sources..."):
                     try:
-                        # Get live patterns
-                        patterns = asyncio.run(
-                            st.session_state.external_data.get_live_patterns(search_query, language)
+                        # FIXED: Get live patterns using helper function
+                        patterns = run_async_in_streamlit(
+                            st.session_state.external_data.get_live_patterns,
+                            search_query, 
+                            language
                         )
                         
                         if patterns:
@@ -2365,6 +2448,7 @@ pip install spacy transformers torch sentence-transformers
 pip install chromadb psycopg2-binary pymongo
 pip install pylint bandit radon pygments
 pip install GitPython beautifulsoup4 feedparser
+pip install nest-asyncio pandas aiohttp nltk textblob
 
 # Download spaCy model
 python -m spacy download en_core_web_sm
@@ -2383,7 +2467,8 @@ export GITHUB_TOKEN="your-github-token"
                 st.success("✅ All systems operational!")
         
         if st.button("🔄 Restart Portal"):
-            st.info("Please refresh the page to restart")
+            st.session_state.portal_initialized = False
+            st.info("Portal will restart on next interaction")
 
 # ===========================
 # FASTAPI BACKEND - OPTIONAL
@@ -2437,25 +2522,35 @@ async def health_check():
     }
 
 # ===========================
-# MAIN APPLICATION ENTRY POINT
+# MAIN APPLICATION ENTRY POINT - FIXED
 # ===========================
 
-if __name__ == "__main__":
-    import sys
-    
+def main():
+    """Main entry point with proper error handling"""
     try:
-        if len(sys.argv) > 1 and sys.argv[1] == "api":
-            # Run FastAPI backend
-            print("🚀 Starting FastAPI backend...")
-            import uvicorn
-            uvicorn.run(app, host="0.0.0.0", port=8000)
-        else:
-            # Run Streamlit app (default)
-            print("🚀 Starting Streamlit portal...")
-            create_complete_portal_app()
-    
+        create_complete_portal_app()
     except KeyboardInterrupt:
         print("\n👋 Portal shutdown")
     except Exception as e:
-        print(f"❌ Portal startup failed: {e}")
-        print("Try running: pip install streamlit requests")
+        st.error(f"❌ Portal startup failed: {e}")
+        st.markdown("""
+        **Fix Steps:**
+        1. Run: `python setup_portal.py`
+        2. Install missing packages: `pip install -r requirements.txt`
+        3. Download spacy model: `python -m spacy download en_core_web_sm`
+        4. Refresh the page
+        """)
+
+# Only run if executed directly (not imported)
+if __name__ == "__main__":
+    import sys
+    
+    if len(sys.argv) > 1 and sys.argv[1] == "api":
+        # Run FastAPI backend
+        print("🚀 Starting FastAPI backend...")
+        import uvicorn
+        uvicorn.run(app, host="0.0.0.0", port=8000)
+    else:
+        # This should not be reached when run with streamlit
+        print("❌ Please run with: streamlit run main.py")
+        sys.exit(1)
